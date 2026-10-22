@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import test from 'node:test';
+import {spawnSync} from 'node:child_process';
 
 const piDir = process.env.PI_EXPOSURE_TEST_PI_DIR;
 assert(piDir, 'Set PI_EXPOSURE_TEST_PI_DIR to the installed Pi package directory.');
@@ -166,6 +167,35 @@ test('sessions without the package ignore its settings even when the process hoo
   const {session}=await fixture(t,{},false);
   assert.equal(info(session,'optional_echo').exposure,'direct');
   assert(session.getActiveToolNames().includes('optional_echo'));
+});
+
+test('shipped CLI loads the package on fresh and continue startup without inference',async t=>{
+  const {root,agentDir}=await fixture(t);
+  const observer=path.join(root,'cli-observer.js');
+  fs.writeFileSync(observer,`export default function(pi) {
+    pi.on('session_start',()=>{
+      const tools=pi.getAllTools();
+      const exposures=Object.fromEntries(tools.map(tool=>[tool.name,tool.exposure]));
+      console.log(JSON.stringify({type:'exposure-cli-check',exposures}));
+    });
+    pi.on('before_provider_request',()=>{throw new Error('Unexpected inference in CLI startup test');});
+  }`);
+  const manifest=JSON.parse(fs.readFileSync(path.join(piDir,'package.json'),'utf8'));
+  const cli=path.resolve(piDir,manifest.bin.pi);
+  for(const selection of ['--no-session','--continue']) {
+    const run=spawnSync(process.execPath,[cli,'--offline','--no-mcp','--no-skills','--no-prompt-templates','--no-context-files','--mode','rpc',selection,'-e',observer],{
+      cwd:root,input:'',encoding:'utf8',timeout:10000,
+      env:{...process.env,PI_CODING_AGENT_DIR:agentDir,PI_OFFLINE:'1'},
+    });
+    assert.equal(run.status,0,`${selection}: ${run.error??''}\n${run.stderr}`);
+    assert(!run.stderr.includes('Unexpected Pi exposure implementation'),run.stderr);
+    const record=(run.stdout+'\n'+run.stderr).split('\n').filter(line=>line.startsWith('{')).map(line=>JSON.parse(line)).find(item=>item.type==='exposure-cli-check');
+    assert(record,`${selection}: missing startup verification\n${run.stdout}\n${run.stderr}`);
+    for(const name of ['read','bash','edit','write','direct_echo']) assert.equal(record.exposures[name],'direct',name);
+    assert.equal(record.exposures.optional_echo,'deferred');
+    assert.equal(record.exposures.ui_only,'model-only');
+    assert.equal(record.exposures.withdrawn,'hidden');
+  }
 });
 
 test('policy disable and package removal on reload return to authored behavior',async t=>{

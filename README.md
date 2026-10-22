@@ -51,7 +51,7 @@ Reload/resume deliberately preserve Pi's existing active-tool state. Adding a de
 
 ## Compatibility mechanism and risks
 
-- Exact Pi version gate (`1.3.0`) plus a check of the original exposure method's normalized source and writable/extensible prototype, before mutation.
+- Exact Pi version gate (`1.3.0`) plus a check of the original exposure method's normalized source and writable/extensible prototype, before mutation. Both verified SDK and shipped CLI bundle forms are accepted: the bundle omits a final semicolon. Other method bodies remain rejected.
 - One process-lifetime hook, installed idempotently. It applies only to sessions whose current extension runner includes this package's entry file. Removing the package on reload makes the hook inert; restarting removes the in-memory patch entirely.
 - Reads each session's own merged policy, so settings do not leak to sessions lacking the package.
 - Leaves the tool registry, author definitions, handlers, renderers, schemas, and permission/result hooks untouched. `getToolDefinition()` still returns the authored definition; `getAllTools()` reports effective exposure.
@@ -59,7 +59,7 @@ Reload/resume deliberately preserve Pi's existing active-tool state. Adding a de
 - Existing conflicting exposure hooks are refused when installing/reloading. A different extension can still replace our hook afterward; there is no general monkey-patch arbitration protocol.
 - Unsupported builds produce an extension-loading error, not a guarantee that Pi itself exits. Do not assume the policy is active if loading reports an error.
 
-Not yet production-hardened: no interactive TUI/RPC end-to-end run, session switching/forking/branch-navigation matrix, live process notification/debugger workflows, other extension compatibility matrix, or performance profiling. Policy parsing currently favors simplicity over caching. Third-party extensions that independently activate tools or read authored definitions may bypass the desired *presentation default*. No npm publication or automatic upgrade mechanism is configured.
+Not yet production-hardened: CLI RPC startup (including `--continue`) is covered, but not interactive TUI/full RPC conversations, a session switching/forking/branch-navigation matrix, live process notification/debugger workflows, other extension compatibility matrix, or performance profiling. Policy parsing currently favors simplicity over caching. Third-party extensions that independently activate tools or read authored definitions may bypass the desired *presentation default*. No npm publication or automatic upgrade mechanism is configured.
 
 ## Reproduce offline
 
@@ -80,7 +80,7 @@ PI_EXPOSURE_TEST_PI_DIR=/absolute/path/to/@earendil-works/pi-coding-agent \
 
 The integration suite also imports the host's adjacent `pi-ai` package. It creates/removes temporary fixture directories, loads this package through its `package.json` manifest, and exercises the real SDK/resource loader. Some tests use private test helpers to prepare a run and supply an in-memory assistant issuer for codemode. The faux-stream capture exercises the real agent-loop declaration projection without a network request.
 
-Verified on the installed Pi 1.3.0: **11 tests pass** (6 unit, 5 integration). Coverage includes precedence/identity matching, protected exposures, builtin/direct-package exceptions, native and codemode discovery, deferred omission from initial schemas/guidelines, structured results, argument validation, permission denial, result hooks, late registration, re-registration, reload, persisted transcript resume, package removal, policy disable, session scoping, idempotence, and unsupported/conflicting-hook refusal.
+Verified on the installed Pi 1.3.0: **13 tests pass** (7 unit, 6 integration), including actual shipped-CLI startup and its effective builtin/extension exposures. The initial SDK-only suite missed a bundled-CLI source-format difference; the CLI regression now exercises that path. Coverage includes precedence/identity matching, protected exposures, builtin/direct-package exceptions, native and codemode discovery, deferred omission from initial schemas/guidelines, structured results, argument validation, permission denial, result hooks, late registration, re-registration, reload, persisted transcript resume, package removal, policy disable, session scoping, idempotence, and unsupported/conflicting-hook refusal.
 
 ## Next decision
 

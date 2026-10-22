@@ -50,6 +50,13 @@ test('installation is idempotent and conflicting runtime hooks are refused', () 
   assert.throws(() => installExposureHook(Host, '1.3.0', '/extension.ts'), /Another extension replaced/);
 });
 
+test('the shipped CLI form without a final semicolon is accepted', () => {
+  class BundledHost {
+    _getToolExposure(name){return this._toolDefinitions.get(name)?.definition.exposure??"direct"}
+  }
+  assert.doesNotThrow(() => installExposureHook(BundledHost, '1.3.0', '/extension.ts'));
+});
+
 test('unsupported version or implementation is refused without mutation', () => {
   class Unsupported {_getToolExposure() {return 'direct';}}
   const before = Unsupported.prototype._getToolExposure;

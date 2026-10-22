@@ -1,7 +1,11 @@
 import {parsePolicy, resolveExposure} from './policy.mjs';
 
 const key = Symbol.for('maap.pi.native-tool-exposure.prototype.v1');
-const expected = '_getToolExposure(name){returnthis._toolDefinitions.get(name)?.definition.exposure??"direct";}';
+// Verified Pi 1.3.0 SDK and shipped CLI bundle forms. Do not accept arbitrary method bodies.
+const expected = new Set([
+  '_getToolExposure(name){returnthis._toolDefinitions.get(name)?.definition.exposure??"direct";}',
+  '_getToolExposure(name){returnthis._toolDefinitions.get(name)?.definition.exposure??"direct"}',
+]);
 
 /** Install once per host process. Unloaded sessions always pass through to Pi. */
 export function installExposureHook(AgentSession, version, extensionPath) {
@@ -15,7 +19,7 @@ export function installExposureHook(AgentSession, version, extensionPath) {
   }
   const descriptor = Object.getOwnPropertyDescriptor(prototype, '_getToolExposure');
   const original = descriptor?.value;
-  if (!Object.isExtensible(prototype) || !descriptor?.writable || typeof original !== 'function' || original.toString().replace(/\s/g, '') !== expected) {
+  if (!Object.isExtensible(prototype) || !descriptor?.writable || typeof original !== 'function' || !expected.has(original.toString().replace(/\s/g, ''))) {
     throw new Error('Unexpected Pi exposure implementation. Refusing to install the compatibility hook.');
   }
   const paths = new Set([extensionPath]);
