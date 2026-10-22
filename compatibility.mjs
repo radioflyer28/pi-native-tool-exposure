@@ -1,7 +1,8 @@
 import {parsePolicy, resolveExposure} from './policy.mjs';
 
 const key = Symbol.for('maap.pi.native-tool-exposure.prototype.v1');
-// Verified Pi 1.3.0 SDK and shipped CLI bundle forms. Do not accept arbitrary method bodies.
+export const SUPPORTED_PI_VERSIONS = Object.freeze(['1.3.0', '1.4.0']);
+// Verified SDK and shipped CLI bundle forms for the supported releases. Reject other bodies.
 const expected = new Set([
   '_getToolExposure(name){returnthis._toolDefinitions.get(name)?.definition.exposure??"direct";}',
   '_getToolExposure(name){returnthis._toolDefinitions.get(name)?.definition.exposure??"direct"}',
@@ -9,7 +10,7 @@ const expected = new Set([
 
 /** Install once per host process. Unloaded sessions always pass through to Pi. */
 export function installExposureHook(AgentSession, version, extensionPath) {
-  if (version !== '1.3.0') throw new Error(`Native exposure prototype supports Pi 1.3.0 only; found ${version}. No hook installed.`);
+  if (!SUPPORTED_PI_VERSIONS.includes(version)) throw new Error(`Native exposure prototype supports Pi ${SUPPORTED_PI_VERSIONS.join(', ')} only; found ${version}. No hook installed.`);
   const prototype = AgentSession.prototype;
   const existing = prototype[key];
   if (existing) {

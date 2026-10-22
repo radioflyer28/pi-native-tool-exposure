@@ -1,10 +1,10 @@
 # Native tool exposure — isolated package prototype
 
-**Experimental, Pi 1.3.0 only. This standalone package is not installed or enabled automatically.** This is a package-delivered **private runtime patch**, not a supported exposure-policy extension API. It changes an in-memory method; it does not edit Pi's installed files.
+**Experimental; tested with Pi 1.3.0 and 1.4.0. This standalone package is not installed or enabled automatically.** This is a package-delivered **private runtime patch**, not a supported exposure-policy extension API. It changes an in-memory method; it does not edit Pi's installed files.
 
 ## Result
 
-The package approach is viable on the tested release. Pi's actual resource loader loads this directory as a local package, and its extension imports the same `AgentSession` class used by the host. A narrowly scoped replacement of `_getToolExposure()` supplies effective exposure to registration/activation, native tool search, codemode discovery, callability, and loadout preparation.
+The package approach is viable on both tested releases. Pi's actual resource loader loads this directory as a local package, and its extension imports the same `AgentSession` class used by the host. A narrowly scoped replacement of `_getToolExposure()` supplies effective exposure to registration/activation, native tool search, codemode discovery, callability, and loadout preparation.
 
 Tests use temporary agent directories, local fixture packages, and Pi's local faux stream. They do not use live settings, credentials, remote inference, process/debugger packages, or their installed patches. An actual agent-loop request captured at the faux stream contains the direct-exception schema and omits the deferred schema. This is not a provider token measurement.
 
@@ -25,7 +25,7 @@ This is **prototype-specific syntax**, not a currently supported core Pi setting
 }
 ```
 
-The example leaves ordinary built-ins direct and makes native extension tools deferred by default. The multiedit exception is relevant to our setup because that package replaces `read`/`edit`. Process and debugger need no individual rules under this default. **No live configuration has been changed to this example.**
+The example leaves ordinary built-ins direct and makes native extension tools deferred by default. The multiedit exception is relevant to our setup because that package replaces `read`/`edit`. Process and debugger need no individual rules under this default. The package never changes settings itself; applying this example is an explicit operator action.
 
 Rules may select `direct`, `codemode`, or `deferred`. Precedence:
 
@@ -51,7 +51,7 @@ Reload/resume deliberately preserve Pi's existing active-tool state. Adding a de
 
 ## Compatibility mechanism and risks
 
-- Exact Pi version gate (`1.3.0`) plus a check of the original exposure method's normalized source and writable/extensible prototype, before mutation. Both verified SDK and shipped CLI bundle forms are accepted: the bundle omits a final semicolon. Other method bodies remain rejected.
+- Exact Pi version allowlist (`1.3.0`, `1.4.0`) plus a check of the original exposure method's normalized source and writable/extensible prototype, before mutation. Both verified SDK and shipped CLI bundle forms are accepted: the bundle omits a final semicolon. Other method bodies remain rejected.
 - One process-lifetime hook, installed idempotently. It applies only to sessions whose current extension runner includes this package's entry file. Removing the package on reload makes the hook inert; restarting removes the in-memory patch entirely.
 - Reads each session's own merged policy, so settings do not leak to sessions lacking the package.
 - Leaves the tool registry, author definitions, handlers, renderers, schemas, and permission/result hooks untouched. `getToolDefinition()` still returns the authored definition; `getAllTools()` reports effective exposure.
@@ -80,8 +80,8 @@ PI_EXPOSURE_TEST_PI_DIR=/absolute/path/to/@earendil-works/pi-coding-agent \
 
 The integration suite also imports the host's adjacent `pi-ai` package. It creates/removes temporary fixture directories, loads this package through its `package.json` manifest, and exercises the real SDK/resource loader. Some tests use private test helpers to prepare a run and supply an in-memory assistant issuer for codemode. The faux-stream capture exercises the real agent-loop declaration projection without a network request.
 
-Verified on the installed Pi 1.3.0: **13 tests pass** (7 unit, 6 integration), including actual shipped-CLI startup and its effective builtin/extension exposures. The initial SDK-only suite missed a bundled-CLI source-format difference; the CLI regression now exercises that path. Coverage includes precedence/identity matching, protected exposures, builtin/direct-package exceptions, native and codemode discovery, deferred omission from initial schemas/guidelines, structured results, argument validation, permission denial, result hooks, late registration, re-registration, reload, persisted transcript resume, package removal, policy disable, session scoping, idempotence, and unsupported/conflicting-hook refusal.
+Verified separately on Pi **1.3.0 and 1.4.0**: **13 tests pass per release** (7 unit, 6 integration), including actual shipped-CLI startup and its effective builtin/extension exposures. The CLI test verifies that its SDK export reports the tested release and that all eight ordinary built-ins retain direct exposure. Pi 1.4.0 was installed only in an isolated temporary test directory; testing did not upgrade live Pi. The initial SDK-only suite missed a bundled-CLI source-format difference; the CLI regression now exercises that path. Coverage includes precedence/identity matching, protected exposures, builtin/direct-package exceptions, native and codemode discovery, deferred omission from initial schemas/guidelines, structured results, argument validation, permission denial, result hooks, late registration, re-registration, reload, persisted transcript resume, package removal, policy disable, session scoping, idempotence, and unsupported/conflicting-hook refusal.
 
 ## Next decision
 
-This proves package delivery can provide the requested initial-exposure behavior on Pi 1.3.0; an on-disk core patch is **not currently necessary** for that tested behavior. Before installing it, review the private-hook tradeoff and harden the remaining lifecycle/compatibility cases. Any live trial, settings changes, npm publication, or fallback installation patch requires separate approval.
+This proves package delivery can provide the requested initial-exposure behavior on Pi 1.3.0 and 1.4.0; an on-disk core patch is **not currently necessary** for that tested behavior. Before installing it, review the private-hook tradeoff and harden the remaining lifecycle/compatibility cases. Any live trial, settings changes, npm publication, or fallback installation patch requires separate approval.

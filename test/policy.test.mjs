@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {parsePolicy, resolveExposure} from '../policy.mjs';
-import {installExposureHook} from '../compatibility.mjs';
+import {installExposureHook, SUPPORTED_PI_VERSIONS} from '../compatibility.mjs';
 
 const entry = (overrides = {}) => ({definition: {name: 'optional'}, sourceInfo: {source: 'npm:@example/tools@1.2.3', path: '/pkg/tools.ts', origin: 'package', ...overrides}});
 
@@ -51,16 +51,18 @@ test('installation is idempotent and conflicting runtime hooks are refused', () 
 });
 
 test('the shipped CLI form without a final semicolon is accepted', () => {
-  class BundledHost {
-    _getToolExposure(name){return this._toolDefinitions.get(name)?.definition.exposure??"direct"}
+  for (const version of SUPPORTED_PI_VERSIONS) {
+    class BundledHost {
+      _getToolExposure(name){return this._toolDefinitions.get(name)?.definition.exposure??"direct"}
+    }
+    assert.doesNotThrow(() => installExposureHook(BundledHost, version, '/extension.ts'));
   }
-  assert.doesNotThrow(() => installExposureHook(BundledHost, '1.3.0', '/extension.ts'));
 });
 
 test('unsupported version or implementation is refused without mutation', () => {
   class Unsupported {_getToolExposure() {return 'direct';}}
   const before = Unsupported.prototype._getToolExposure;
-  assert.throws(() => installExposureHook(Unsupported, '1.4.0', '/extension.ts'), /supports Pi 1.3.0 only/);
+  assert.throws(() => installExposureHook(Unsupported, '1.5.0', '/extension.ts'), /supports Pi 1.3.0, 1.4.0 only/);
   assert.throws(() => installExposureHook(Unsupported, '1.3.0', '/extension.ts'), /Unexpected Pi exposure/);
   assert.equal(Unsupported.prototype._getToolExposure, before);
 });

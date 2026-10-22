@@ -172,11 +172,12 @@ test('sessions without the package ignore its settings even when the process hoo
 test('shipped CLI loads the package on fresh and continue startup without inference',async t=>{
   const {root,agentDir}=await fixture(t);
   const observer=path.join(root,'cli-observer.js');
-  fs.writeFileSync(observer,`export default function(pi) {
+  fs.writeFileSync(observer,`import {VERSION} from '@earendil-works/pi-coding-agent';
+  export default function(pi) {
     pi.on('session_start',()=>{
       const tools=pi.getAllTools();
       const exposures=Object.fromEntries(tools.map(tool=>[tool.name,tool.exposure]));
-      console.log(JSON.stringify({type:'exposure-cli-check',exposures}));
+      console.log(JSON.stringify({type:'exposure-cli-check',version:VERSION,exposures}));
     });
     pi.on('before_provider_request',()=>{throw new Error('Unexpected inference in CLI startup test');});
   }`);
@@ -191,7 +192,8 @@ test('shipped CLI loads the package on fresh and continue startup without infere
     assert(!run.stderr.includes('Unexpected Pi exposure implementation'),run.stderr);
     const record=(run.stdout+'\n'+run.stderr).split('\n').filter(line=>line.startsWith('{')).map(line=>JSON.parse(line)).find(item=>item.type==='exposure-cli-check');
     assert(record,`${selection}: missing startup verification\n${run.stdout}\n${run.stderr}`);
-    for(const name of ['read','bash','edit','write','direct_echo']) assert.equal(record.exposures[name],'direct',name);
+    assert.equal(record.version,sdk.VERSION,'CLI and SDK must come from the same tested release');
+    for(const name of ['read','bash','edit','write','powershell','grep','find','ls','direct_echo']) assert.equal(record.exposures[name],'direct',name);
     assert.equal(record.exposures.optional_echo,'deferred');
     assert.equal(record.exposures.ui_only,'model-only');
     assert.equal(record.exposures.withdrawn,'hidden');
