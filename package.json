@@ -1,0 +1,30 @@
+{
+  "name": "maap-pi-native-tool-exposure-prototype",
+  "version": "0.0.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/radioflyer28/pi-native-tool-exposure.git"
+  },
+  "type": "module",
+  "description": "Experimental Pi 1.3.0 runtime compatibility hook for native tool exposure policy",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "pi": {
+    "extensions": [
+      "./extension.ts"
+    ]
+  },
+  "scripts": {
+    "test": "node --test test/policy.test.mjs"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  }
+}
