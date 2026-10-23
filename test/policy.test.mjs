@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {parsePolicy, resolveExposure} from '../policy.mjs';
-import {installExposureHook, SUPPORTED_PI_VERSIONS} from '../compatibility.mjs';
+import {installExposureHook, MINIMUM_PI_VERSION, supportsPiVersion} from '../compatibility.mjs';
 
 const entry = (overrides = {}) => ({definition: {name: 'optional'}, sourceInfo: {source: 'npm:@example/tools@1.2.3', path: '/pkg/tools.ts', origin: 'package', ...overrides}});
 
@@ -42,16 +42,16 @@ test('installation is idempotent and conflicting runtime hooks are refused', () 
   class Host {
     _getToolExposure(name) {return this._toolDefinitions.get(name)?.definition.exposure ?? "direct";}
   }
-  installExposureHook(Host, '1.3.0', '/extension.ts');
+  installExposureHook(Host, '1.4.0', '/extension.ts');
   const hook = Host.prototype._getToolExposure;
-  installExposureHook(Host, '1.3.0', '/extension.ts');
+  installExposureHook(Host, '1.4.0', '/extension.ts');
   assert.equal(Host.prototype._getToolExposure, hook);
   Host.prototype._getToolExposure = () => 'hidden';
-  assert.throws(() => installExposureHook(Host, '1.3.0', '/extension.ts'), /Another extension replaced/);
+  assert.throws(() => installExposureHook(Host, '1.4.0', '/extension.ts'), /Another extension replaced/);
 });
 
 test('the shipped CLI form without a final semicolon is accepted', () => {
-  for (const version of SUPPORTED_PI_VERSIONS) {
+  for (const version of ['1.4.0', '1.4.1', '1.5.0', '2.0.0', '1.4.0+custom']) {
     class BundledHost {
       _getToolExposure(name){return this._toolDefinitions.get(name)?.definition.exposure??"direct"}
     }
@@ -62,7 +62,34 @@ test('the shipped CLI form without a final semicolon is accepted', () => {
 test('unsupported version or implementation is refused without mutation', () => {
   class Unsupported {_getToolExposure() {return 'direct';}}
   const before = Unsupported.prototype._getToolExposure;
-  assert.throws(() => installExposureHook(Unsupported, '1.5.0', '/extension.ts'), /supports Pi 1.3.0, 1.4.0 only/);
-  assert.throws(() => installExposureHook(Unsupported, '1.3.0', '/extension.ts'), /Unexpected Pi exposure/);
+  assert.equal(MINIMUM_PI_VERSION, '1.4.0');
+  for (const version of ['1.3.0', '1.3.99', '0.99.0', '1.4.0-rc.1', '2.0.0-rc.1', 'latest', undefined]) {
+    assert.equal(supportsPiVersion(version), false);
+    assert.throws(() => installExposureHook(Unsupported, version, '/extension.ts'), /requires stable Pi >=1.4.0/);
+  }
+  for (const version of ['1.4.0', '1.4.1', '1.5.0', '2.0.0']) assert.throws(() => installExposureHook(Unsupported, version, '/extension.ts'), /Unexpected Pi exposure/);
   assert.equal(Unsupported.prototype._getToolExposure, before);
+});
+
+test('later version numbers do not bypass per-session capabilities or source checks', () => {
+  class Host {_getToolExposure(name) {return this._toolDefinitions.get(name)?.definition.exposure ?? "direct";}}
+  installExposureHook(Host, '2.0.0', '/extension.ts'); // Synthetic host, not certification of a future Pi release.
+  const host = new Host();
+  assert.throws(() => host._getToolExposure('optional'), /registry capability/);
+  host._toolDefinitions = new Map([['optional', entry()]]);
+  assert.equal(host._getToolExposure('optional'), 'direct');
+  host._extensionRunner = {};
+  assert.throws(() => host._getToolExposure('optional'), /runner capability/);
+  host._extensionRunner = {getExtensionPaths: () => 'bad'};
+  assert.throws(() => host._getToolExposure('optional'), /extension paths/);
+  host._extensionRunner = {getExtensionPaths: () => ['/unloaded.ts']};
+  assert.equal(host._getToolExposure('optional'), 'direct');
+  host._extensionRunner = {getExtensionPaths: () => ['/extension.ts']};
+  assert.throws(() => host._getToolExposure('optional'), /settings capability/);
+  host.settingsManager = {getSettings: () => null};
+  assert.throws(() => host._getToolExposure('optional'), /settings shape/);
+  host.settingsManager = {getSettings: () => ({nativeToolExposure: {default: 'deferred'}})};
+  assert.equal(host._getToolExposure('optional'), 'deferred');
+  host._toolDefinitions.set('optional', {definition: {name: 'optional'}, sourceInfo: {source: 'npm:test'}});
+  assert.throws(() => host._getToolExposure('optional'), /definition\/source shape/);
 });
